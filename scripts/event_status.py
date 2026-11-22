@@ -14,7 +14,13 @@ from statistics import fmean, pstdev
 import httpx
 from everestapi import EverestError
 
-from hackathon_setup import ROOT, make_client, phase_time_remaining, require_event_account, usdc
+from everesteer_hackathon.setup import (
+    ROOT,
+    make_client,
+    phase_time_remaining,
+    require_event_account,
+    usdc,
+)
 
 FINAL_STATES = {"done", "completed", "failed", "cancelled", "canceled"}
 ELIGIBLE_STATES = {"submitted", "pending", "running", "done", "completed"}

@@ -53,6 +53,8 @@ or anything else that can call tools. Everything below is available to a human t
 | Area | Contents |
 |---|---|
 | Repository root | Core setup, model, scoring, and shared utilities |
+| [`everesteer_hackathon/`](everesteer_hackathon) | Shared Python package for setup, models, and scoring |
+| [`config/`](config) | Local environment template and configuration examples |
 | [`scripts/`](scripts) | End-to-end entrypoints and round/submission CLIs |
 | [`research/`](research) | Offline candidate sweeps and portfolio experiments |
 | [`tests/`](tests) | Mocked unit tests that run without event credentials |
@@ -107,7 +109,7 @@ Paste onboarding's **Copy setup command** to export your credentials, then run t
 from the cloned repo:
 
 ```bash
-bash install-claude-mcp.sh      # or: curl -sL https://hackathon.everesteer.ai/install-claude-mcp.sh | bash
+bash scripts/install-claude-mcp.sh      # or: curl -sL https://hackathon.everesteer.ai/install-claude-mcp.sh | bash
 ```
 
 It registers the `eiq` MCP server (`python -m everestapi.mcp`) under your user scope for Claude
@@ -394,7 +396,7 @@ To let an agent drive the tools directly, see [The toolkit](#the-toolkit).
 | [`notebooks/01_explore_the_data.ipynb`](notebooks/01_explore_the_data.ipynb) | Expeds, feature bins and missingness, the target family. Read-only. |
 | [`notebooks/02_train_and_submit.ipynb`](notebooks/02_train_and_submit.ipynb) | A baseline, embargoed evaluation, the board, a round submission. |
 | [`example_predictions.csv`](example_predictions.csv) | A format reference for `id,prediction`. Never submit it. |
-| [`install-claude-mcp.sh`](install-claude-mcp.sh) | One-command MCP registration for Claude Code. |
+| [`install-claude-mcp.sh`](scripts/install-claude-mcp.sh) | One-command MCP registration for Claude Code. |
 | [`AGENTS.md`](AGENTS.md) | The agent contract: the loop, the two submit calls, staking, where to train. |
 | [`.claude/skills/`](.claude/skills) | A research workflow your agent can load. |
 | [`ruff.toml`](ruff.toml) | Lint config. The same rules CI runs. |

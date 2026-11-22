@@ -18,7 +18,7 @@ import pandas as pd
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import OneHotEncoder
 
-from hackathon_models import (
+from everesteer_hackathon.models import (
     BASE_CONFIGS,
     LIBRARIES,
     benchmark_residual_target,
@@ -32,7 +32,7 @@ from hackathon_models import (
     stable_feature_subset,
     walk_forward_splits,
 )
-from hackathon_scoring import align_benchmark, core_reference, resolve_core_features
+from everesteer_hackathon.scoring import align_benchmark, core_reference, resolve_core_features
 from research.research_experiments import ResearchData, atomic_json
 from research.research_ridge_sweep import cross_sectional_similarity, score_windows, select_portfolio
 

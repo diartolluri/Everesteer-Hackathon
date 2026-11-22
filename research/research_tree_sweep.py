@@ -17,7 +17,7 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
-from hackathon_models import (
+from everesteer_hackathon.models import (
     LIBRARIES,
     benchmark_residual_target,
     check_predictions,
@@ -32,7 +32,7 @@ from hackathon_models import (
     stable_feature_subset,
     weighted_rank_prediction,
 )
-from hackathon_scoring import align_benchmark, event_metrics, score_expeds
+from everesteer_hackathon.scoring import align_benchmark, event_metrics, score_expeds
 
 CAPACITIES = {
     "compact": {"num_leaves": 8, "max_depth": 3, "min_child_samples": 120, "reg_lambda": 7},

@@ -397,7 +397,7 @@ def blend_prediction(predictors, exped_column, weight):
 
 def benchmark_surrogate_predictor(predictor, reference_predictor, exped_column, alpha):
     """Hedge against a feature-only benchmark estimate trained on historical data."""
-    from hackathon_scoring import benchmark_neutralize
+    from everesteer_hackathon.scoring import benchmark_neutralize
 
     def predict(live_features):
         forecasts = predictor(live_features)["prediction"]
@@ -634,8 +634,8 @@ def check_predictions(predictor, sample):
 def package(predictors, sample, exped, folder):
     if __name__ != "__main__":
         cloudpickle.register_pickle_by_value(sys.modules[__name__])
-    if "hackathon_scoring" in sys.modules:
-        cloudpickle.register_pickle_by_value(sys.modules["hackathon_scoring"])
+    if "everesteer_hackathon.scoring" in sys.modules:
+        cloudpickle.register_pickle_by_value(sys.modules["everesteer_hackathon.scoring"])
     models = {}
     for name, predictor in predictors.items():
         path = folder / f"{name}.pkl"
@@ -1094,7 +1094,7 @@ def main():
         else:
             if not args.train.is_file() or not args.schema.is_file():
                 parser.error(
-                    "Missing train parquet or dataset schema. Run `python hackathon_setup.py download` first."
+                    "Missing train parquet or dataset schema. Run `python -m everesteer_hackathon.setup download` first."
                 )
             train = pd.read_parquet(args.train)
             schema = json.loads(args.schema.read_text())

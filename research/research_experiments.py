@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from hackathon_models import (
+from everesteer_hackathon.models import (
     BASE_CONFIGS,
     LIBRARIES,
     TRIAL_CONFIGS,
@@ -30,7 +30,7 @@ from hackathon_models import (
     walk_forward_splits,
     weighted_rank_prediction,
 )
-from hackathon_scoring import (
+from everesteer_hackathon.scoring import (
     align_benchmark,
     benchmark_neutralize,
     core_reference,

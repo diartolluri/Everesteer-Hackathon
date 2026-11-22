@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import Ridge
 
-from hackathon_models import (
+from everesteer_hackathon.models import (
     LIBRARIES,
     benchmark_residual_target,
     chronological_split,
@@ -29,7 +29,7 @@ from hackathon_models import (
     stable_feature_subset,
     walk_forward_splits,
 )
-from hackathon_scoring import align_benchmark, core_reference, resolve_core_features
+from everesteer_hackathon.scoring import align_benchmark, core_reference, resolve_core_features
 from research.research_experiments import (
     ResearchData,
     atomic_json,

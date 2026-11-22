@@ -15,7 +15,7 @@ from types import SimpleNamespace
 import cloudpickle
 import pandas as pd
 
-from hackathon_models import (
+from everesteer_hackathon.models import (
     BASE_CONFIGS,
     LIBRARIES,
     check_predictions,
@@ -27,7 +27,7 @@ from hackathon_models import (
     walk_forward_splits,
     weighted_rank_prediction,
 )
-from hackathon_scoring import align_benchmark, core_reference, resolve_core_features
+from everesteer_hackathon.scoring import align_benchmark, core_reference, resolve_core_features
 from research.research_categorical_sweep import PROFILES as CATEGORICAL_PROFILES
 from research.research_categorical_sweep import fit_profile as fit_categorical
 from research.research_experiments import (

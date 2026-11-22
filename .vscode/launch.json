@@ -6,7 +6,7 @@
       "type": "debugpy",
       "request": "launch",
       "python": "${workspaceFolder}/.venv/bin/python",
-      "program": "${workspaceFolder}/hackathon_setup.py",
+      "module": "everesteer_hackathon.setup",
       "cwd": "${workspaceFolder}",
       "args": ["status"],
       "console": "integratedTerminal"
@@ -16,7 +16,7 @@
       "type": "debugpy",
       "request": "launch",
       "python": "${workspaceFolder}/.venv/bin/python",
-      "program": "${workspaceFolder}/hackathon_setup.py",
+      "module": "everesteer_hackathon.setup",
       "cwd": "${workspaceFolder}",
       "args": ["download"],
       "console": "integratedTerminal"
@@ -26,7 +26,7 @@
       "type": "debugpy",
       "request": "launch",
       "python": "${workspaceFolder}/.venv/bin/python",
-      "program": "${workspaceFolder}/hackathon_models.py",
+      "module": "everesteer_hackathon.models",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal"
     },
@@ -35,7 +35,7 @@
       "type": "debugpy",
       "request": "launch",
       "python": "${workspaceFolder}/.venv/bin/python",
-      "program": "${workspaceFolder}/hackathon_models.py",
+      "module": "everesteer_hackathon.models",
       "cwd": "${workspaceFolder}",
       "args": ["--smoke-test", "--artifacts", "artifacts/smoke-test"],
       "console": "integratedTerminal"

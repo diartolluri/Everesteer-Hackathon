@@ -16,7 +16,7 @@ import cloudpickle
 import numpy as np
 import pandas as pd
 
-from hackathon_models import LIBRARIES, check_predictions, package, weighted_rank_prediction
+from everesteer_hackathon.models import LIBRARIES, check_predictions, package, weighted_rank_prediction
 from research.research_experiments import atomic_json
 
 SOURCES = {

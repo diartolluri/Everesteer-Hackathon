@@ -12,7 +12,7 @@ import cloudpickle
 import numpy as np
 import pandas as pd
 
-import hackathon_models as models
+import everesteer_hackathon.models as models
 
 
 class ModelTests(unittest.TestCase):
@@ -226,8 +226,8 @@ class ModelTests(unittest.TestCase):
                 "import sys, cloudpickle, pandas as pd\n"
                 "with open('hedge.pkl', 'rb') as artifact:\n"
                 "    predict = cloudpickle.load(artifact)\n"
-                "assert 'hackathon_scoring' not in sys.modules\n"
-                "assert 'hackathon_models' not in sys.modules\n"
+                "assert 'everesteer_hackathon.scoring' not in sys.modules\n"
+                "assert 'everesteer_hackathon.models' not in sys.modules\n"
                 "frame = pd.read_parquet('sample.parquet')\n"
                 "predict(frame).to_parquet('result.parquet')\n"
             )

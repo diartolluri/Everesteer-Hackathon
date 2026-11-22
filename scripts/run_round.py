@@ -20,7 +20,7 @@ import pandas as pd
 from everestapi import EverestError
 from pandas.api.types import is_bool_dtype, is_complex_dtype, is_numeric_dtype
 
-from hackathon_setup import ROOT, make_client, require_event_account
+from everesteer_hackathon.setup import ROOT, make_client, require_event_account
 
 DEFAULT_LEDGER = ROOT / "artifacts" / "submissions.sqlite3"
 BASELINE_SLOTS = {"lightgbm": "hackathon-01", "ridge": "hackathon-02", "rank-blend": "hackathon-03"}

@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import Ridge
 
-from hackathon_models import (
+from everesteer_hackathon.models import (
     LIBRARIES,
     benchmark_residual_target,
     check_predictions,
@@ -31,7 +31,7 @@ from hackathon_models import (
     walk_forward_splits,
     weighted_rank_prediction,
 )
-from hackathon_scoring import align_benchmark, core_reference, resolve_core_features
+from everesteer_hackathon.scoring import align_benchmark, core_reference, resolve_core_features
 from research.research_experiments import ResearchData, atomic_json
 from research.research_ridge_sweep import PROFILES as PRIOR_PROFILES
 from research.research_ridge_sweep import cross_sectional_similarity, score_windows, select_portfolio

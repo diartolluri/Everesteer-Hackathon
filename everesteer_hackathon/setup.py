@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from everestapi import EverestAPI, EverestError
 from packaging.requirements import InvalidRequirement, Requirement
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 EVENT_URL = "https://hackathon.everesteer.ai"
 MODEL_LIBRARIES = {"cloudpickle", "lightgbm", "numpy", "pandas", "pyarrow", "scikit-learn", "scipy"}
 

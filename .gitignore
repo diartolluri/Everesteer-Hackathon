@@ -15,7 +15,7 @@ venv/
 .env
 .env.*
 *.env
-!.env.example
+!config/.env.example
 
 # macOS
 .DS_Store

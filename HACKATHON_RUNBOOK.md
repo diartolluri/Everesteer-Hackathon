@@ -8,7 +8,7 @@ The prepared VS Code workspace uses `.venv/bin/python` (Python 3.12). On a fresh
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-cp -n .env.example .env
+cp -n config/.env.example .env
 ```
 
 Everesteer issues an event-specific API key through onboarding or your event account page. In the setup guide, choose **Bring your own → Python SDK** for this project. Put the event key in the local `.env` as `EIQ_API_KEY` and use `EIQ_BASE_URL=https://hackathon.everesteer.ai`. The **Codex** option configures a separate MCP connection and requires the standalone `codex` command on your terminal's PATH. The Python scripts use the key from `.env`. That file, downloads, model artifacts, prediction files and local receipts are Git-ignored.
@@ -18,7 +18,7 @@ The public weekday tournament tutorial documents a separate automatic submission
 ```sh
 source .venv/bin/activate
 python -m unittest discover -s tests -v
-python hackathon_models.py --smoke-test --artifacts artifacts/smoke-test
+python -m everesteer_hackathon.models --smoke-test --artifacts artifacts/smoke-test
 python -m scripts.event_status status --offline --artifacts artifacts/smoke-test
 ```
 
@@ -29,9 +29,9 @@ GitHub Actions runs the mocked test suite offline. Everesteer’s internal obfus
 ## Build phase
 
 ```sh
-python hackathon_setup.py status
-python hackathon_setup.py download
-python hackathon_models.py --baseline-only --artifacts artifacts/baseline
+python -m everesteer_hackathon.setup status
+python -m everesteer_hackathon.setup download
+python -m everesteer_hackathon.models --baseline-only --artifacts artifacts/baseline
 python -m scripts.run_round practice --artifacts artifacts/baseline
 ```
 
@@ -40,7 +40,7 @@ The first command confirms hackathon scope, the graded target, the feature encod
 Once the reference candidates pass the practice dry run, use the fuller search if the clock allows:
 
 ```sh
-python hackathon_models.py
+python -m everesteer_hackathon.models
 python -m scripts.event_status status
 python -m scripts.run_round practice
 ```
@@ -49,7 +49,7 @@ Defaults are three expanding walk-forward folds of 30 expeds and a separate fina
 
 The manifest gives the primary model, fallback order, library versions, artifact hashes, comparison table, and paths to fold and per-exped metrics. Choose by the walk-forward summaries and use the final holdout as an audit. The offline proxy covers benchmark-relative FIT and available UNQ. The server score also depends on INOV and benchmark INOV. Set the `--model` flag to a chosen alias from the manifest.
 
-The unauthenticated scoring response can show ordinary tournament weights even on the event host. Use the authenticated scoring settings from `hackathon_setup.py`. If a saved response gives incompatible weights, the training command reports the mismatch and selects on FIT with benchmark diagnostics.
+The unauthenticated scoring response can show ordinary tournament weights even on the event host. Use the authenticated scoring settings from `everesteer_hackathon/setup.py`. If a saved response gives incompatible weights, the training command reports the mismatch and selects on FIT with benchmark diagnostics.
 
 Optional research flags include `--feature-set` for a set advertised by the schema and `--max-fit-expeds` to cap fit time. An `--auxiliary-target` experiment requires a verified, embargo-safe label horizon. Use a separate `--artifacts` directory for experimental configurations. Drop the optional tuned search when a round is near and work from the proven baseline.
 

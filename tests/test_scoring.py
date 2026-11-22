@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from everestapi import scoring
 
-from hackathon_scoring import (
+from everesteer_hackathon.scoring import (
     align_benchmark,
     benchmark_neutralize,
     core_reference,

@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 import httpx
 from everestapi import EverestError
 
-from hackathon_setup import (
+from everesteer_hackathon.setup import (
     EVENT_URL,
     download_training,
     make_client,
@@ -54,13 +54,13 @@ class SetupTests(unittest.TestCase):
 
     def test_configured_key_is_never_passed_to_an_unexpected_host(self):
         with (
-            patch("hackathon_setup.load_dotenv"),
+            patch("everesteer_hackathon.setup.load_dotenv"),
             patch.dict(
                 os.environ,
                 {"EIQ_API_KEY": "mock-only", "EIQ_BASE_URL": "https://example.invalid"},
                 clear=True,
             ),
-            patch("hackathon_setup.EverestAPI") as constructor,
+            patch("everesteer_hackathon.setup.EverestAPI") as constructor,
             self.assertRaisesRegex(RuntimeError, "official hackathon URL"),
         ):
             make_client()
@@ -79,7 +79,7 @@ class SetupTests(unittest.TestCase):
         }
         output = io.StringIO()
         with (
-            patch("hackathon_setup.httpx.get", return_value=response) as get,
+            patch("everesteer_hackathon.setup.httpx.get", return_value=response) as get,
             contextlib.redirect_stdout(output),
         ):
             report_model_runtime(started, EVENT_URL)
@@ -97,7 +97,7 @@ class SetupTests(unittest.TestCase):
         }
         response = httpx.Response(200, request=httpx.Request("GET", EVENT_URL + lane_path))
         with (
-            patch("hackathon_setup.httpx.get", return_value=response) as get,
+            patch("everesteer_hackathon.setup.httpx.get", return_value=response) as get,
             contextlib.redirect_stdout(io.StringIO()),
         ):
             report_model_runtime(started, EVENT_URL, api_key="fixture-only")
