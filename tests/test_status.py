@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 from everestapi import EverestAPI
 
-from event_status import event_snapshot, read_fold_scores, stake_scenarios
+from scripts.event_status import event_snapshot, read_fold_scores, stake_scenarios
 
 
 class StatusTests(unittest.TestCase):

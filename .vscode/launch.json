@@ -45,7 +45,7 @@
       "type": "debugpy",
       "request": "launch",
       "python": "${workspaceFolder}/.venv/bin/python",
-      "program": "${workspaceFolder}/run_round.py",
+      "program": "${workspaceFolder}/scripts/run_round.py",
       "cwd": "${workspaceFolder}",
       "args": ["practice"],
       "console": "integratedTerminal"
@@ -55,7 +55,7 @@
       "type": "debugpy",
       "request": "launch",
       "python": "${workspaceFolder}/.venv/bin/python",
-      "program": "${workspaceFolder}/run_round.py",
+      "program": "${workspaceFolder}/scripts/run_round.py",
       "cwd": "${workspaceFolder}",
       "args": ["live"],
       "console": "integratedTerminal"

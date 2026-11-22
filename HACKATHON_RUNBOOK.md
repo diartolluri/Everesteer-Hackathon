@@ -19,7 +19,7 @@ The public weekday tournament tutorial documents a separate automatic submission
 source .venv/bin/activate
 python -m unittest discover -s tests -v
 python hackathon_models.py --smoke-test --artifacts artifacts/smoke-test
-python event_status.py status --offline --artifacts artifacts/smoke-test
+python -m scripts.event_status status --offline --artifacts artifacts/smoke-test
 ```
 
 The smoke test uses synthetic data and is safe without credentials. Use the `.venv` kernel for the official notebooks under `notebooks/`. The end-to-end reference scripts and the submission section of notebook 02 can upload predictions.
@@ -32,7 +32,7 @@ GitHub Actions runs the mocked test suite offline. Everesteer’s internal obfus
 python hackathon_setup.py status
 python hackathon_setup.py download
 python hackathon_models.py --baseline-only --artifacts artifacts/baseline
-python run_round.py practice --artifacts artifacts/baseline
+python -m scripts.run_round practice --artifacts artifacts/baseline
 ```
 
 The first command confirms hackathon scope, the graded target, the feature encoding, scoring settings and runtime pins when published. Check the Python version and package matches before packaging. If the sandbox publishes different pins, use the URL for your Python version, reinstall those requirements, and rerun the tests and training. The local test environment and the event sandbox can use different package versions.
@@ -41,8 +41,8 @@ Once the reference candidates pass the practice dry run, use the fuller search i
 
 ```sh
 python hackathon_models.py
-python event_status.py status
-python run_round.py practice
+python -m scripts.event_status status
+python -m scripts.run_round practice
 ```
 
 Defaults are three expanding walk-forward folds of 30 expeds and a separate final 100-exped chronological holdout. Each evaluation has a 40-exped embargo. Keep that split fixed when comparing model changes. A separately named sensitivity run can use `--embargo-expeds 20` if the known target horizon permits it. Keep baseline and research artifacts in separate directories.
@@ -58,9 +58,9 @@ Optional research flags include `--feature-set` for a set advertised by the sche
 Run the research comparison with the interpreter and library pins published for the event.
 
 ```sh
-python research_experiments.py --refit-expeds 1400 --sensitivity-embargo-expeds 80
+python -m research.research_experiments --refit-expeds 1400 --sensitivity-embargo-expeds 80
 python -c 'import json; print(json.load(open("artifacts/research/manifest.json"))["primary_model"])'
-python run_round.py practice --artifacts artifacts/research --candidate NAME
+python -m scripts.run_round practice --artifacts artifacts/research --candidate NAME
 ```
 
 The comparison scouts configurable missing-value policies, stable and benchmark-residual feature subsets, residual targets, an optional auxiliary target, and PCA Ridge. It scales the leading configurations, sweeps rank blends and benchmark neutralization, and audits the chosen candidates on a separate 100-exped holdout. The default selection uses four chronological folds with a 40-exped embargo. The optional 80-exped check uses the same evaluation dates.
@@ -72,22 +72,22 @@ The manifest records the winning name, distinct finalists and validated artifact
 For a wider search, the Ridge, residual LightGBM and categorical sweeps each produce their own model manifest and fold reports. Run them before the practice blend sweep so it can use their verified artifacts.
 
 ```sh
-python research_ridge_sweep.py
-python research_tree_sweep.py
-python research_categorical_sweep.py
-python research_blend_sweep.py
+python -m research.research_ridge_sweep
+python -m research.research_tree_sweep
+python -m research.research_categorical_sweep
+python -m research.research_blend_sweep
 ```
 
-The targeted follow-up sweeps are `research_ranker_sweep.py` for within-exped ranking objectives and `research_residual_ridge_refinement.py` for residual Ridge variants. Both keep a later evaluation window outside model selection.
+The targeted follow-up sweeps are `research/research_ranker_sweep.py` for within-exped ranking objectives and `research/research_residual_ridge_refinement.py` for residual Ridge variants. Both keep a later evaluation window outside model selection.
 
-The practice blend sweep publishes batches under `artifacts/wide-blends/`. A blend receives its own server evaluation when submitted with `run_round.py practice`. For locally validated blends, `research_crossfit_blends.py` fits weights on earlier historical windows and reports results on later embargoed windows and a final audit.
+The practice blend sweep publishes batches under `artifacts/wide-blends/`. A blend receives its own server evaluation when submitted with `python -m scripts.run_round practice`. For locally validated blends, `research/research_crossfit_blends.py` fits weights on earlier historical windows and reports results on later embargoed windows and a final audit.
 
 ## Every scored round
 
 ```sh
-python event_status.py status
+python -m scripts.event_status status
 ROUND=round_1  # Replace with the open window reported by Everesteer.
-python run_round.py live --window "$ROUND" --model lightgbm
+python -m scripts.run_round live --window "$ROUND" --model lightgbm
 ```
 
 The live dry run downloads fresh rows and writes local Parquet predictions and a JSON report. Inspect the window, ID coverage, model checksum and upload allowance. Repeat `--model` to include fallbacks, or use the `--artifacts artifacts/baseline` flag if that is the chosen fit.
@@ -95,9 +95,9 @@ The live dry run downloads fresh rows and writes local Parquet predictions and a
 After your explicit approval for the exact lane and models, use the relevant command. For live, confirm the exact window as well:
 
 ```sh
-python run_round.py practice --model lightgbm --submit
-python run_round.py live --window "$ROUND" --model lightgbm --submit
-python event_status.py status --window "$ROUND"
+python -m scripts.run_round practice --model lightgbm --submit
+python -m scripts.run_round live --window "$ROUND" --model lightgbm --submit
+python -m scripts.event_status status --window "$ROUND"
 ```
 
 Check the receipt and processing status after approval and submission. The status command can also read a completed board by window. `artifacts/runs/` contains dataset and prediction checksums, model IDs, artifacts and receipts. Keep the shared local `artifacts/submissions.sqlite3` ledger when changing artifact directories. A repeat with a known receipt reuses it. For an attempt with an uncertain response, review the saved attempt and platform upload history before any retry.
@@ -105,7 +105,7 @@ Check the receipt and processing status after approval and submission. The statu
 ## Staking decision
 
 ```sh
-python event_status.py stakes --window "$ROUND"
+python -m scripts.event_status stakes --window "$ROUND"
 ```
 
 This read-only command uses published availability, draft window, balance and limits. It presents an unallocated option and may show small illustrative single-model or diversified allocations when current receipts and real-data fold evidence support them. Completed-round evidence can lower confidence in a candidate. The default scenarios cap illustrative exposure at 10% of the reported balance. The live event response determines whether staking is active and what metric decides the event.

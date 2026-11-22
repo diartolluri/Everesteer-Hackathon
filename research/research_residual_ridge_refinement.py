@@ -32,10 +32,10 @@ from hackathon_models import (
     weighted_rank_prediction,
 )
 from hackathon_scoring import align_benchmark, core_reference, resolve_core_features
-from research_experiments import ResearchData, atomic_json
-from research_ridge_sweep import PROFILES as PRIOR_PROFILES
-from research_ridge_sweep import cross_sectional_similarity, score_windows, select_portfolio
-from research_ridge_sweep import fit_profile as fit_prior
+from research.research_experiments import ResearchData, atomic_json
+from research.research_ridge_sweep import PROFILES as PRIOR_PROFILES
+from research.research_ridge_sweep import cross_sectional_similarity, score_windows, select_portfolio
+from research.research_ridge_sweep import fit_profile as fit_prior
 
 TARGETS = ("target_Tidiquin", "target_Toubkal", "target_Timgarine", "target_Ouaoulzat")
 REFERENCE = {

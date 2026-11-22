@@ -37,7 +37,7 @@ there. The human-readable account of the day is in the [README](README.md#the-ev
 
 ## The loop
 
-**Runnable track:** [`starter.py`](starter.py) runs the whole event loop once, end to end, with
+**Runnable track:** [`starter.py`](scripts/starter.py) runs the whole event loop once, end to end, with
 the submit-lane rule and the upload-budget arithmetic in one place. The
 [README](README.md) is the same material for a human.
 
@@ -107,8 +107,8 @@ Every number you act on and every file you upload should come from your own code
   cloudpickled `predict()` (see the artifact rules below) that reproduces the preprocessing in
   the job's `feature_manifest`.
 
-[`starter_hosted.py`](starter_hosted.py) does all three, end to end. Train locally
-([`starter.py`](starter.py)) when you prefer your own hardware or the grant is exhausted.
+[`starter_hosted.py`](scripts/starter_hosted.py) does all three, end to end. Train locally
+([`starter.py`](scripts/starter.py)) when you prefer your own hardware or the grant is exhausted.
 
 **Submit a round with `submit_event_predictions(...)`, not `submit_validation_diagnostics(...)`.**
 There are two upload lanes and they are not interchangeable:

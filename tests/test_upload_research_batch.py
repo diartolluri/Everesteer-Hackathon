@@ -8,9 +8,9 @@ from argparse import Namespace
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import run_round
-import upload_research_batch as batch
-from everesteer_batch import BatchError, BatchMintRefused
+import scripts.run_round as run_round
+import scripts.upload_research_batch as batch
+from scripts.everesteer_batch import BatchError, BatchMintRefused
 
 
 class BatchRunnerTests(unittest.TestCase):

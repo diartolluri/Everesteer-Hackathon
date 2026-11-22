@@ -32,7 +32,7 @@ from hackathon_models import (
     weighted_rank_prediction,
 )
 from hackathon_scoring import align_benchmark, event_metrics, score_expeds
-from research_tree_sweep import (
+from research.research_tree_sweep import (
     CAPACITIES,
     OBJECTIVE,
     Trial,

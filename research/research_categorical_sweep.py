@@ -33,8 +33,8 @@ from hackathon_models import (
     walk_forward_splits,
 )
 from hackathon_scoring import align_benchmark, core_reference, resolve_core_features
-from research_experiments import ResearchData, atomic_json
-from research_ridge_sweep import cross_sectional_similarity, score_windows, select_portfolio
+from research.research_experiments import ResearchData, atomic_json
+from research.research_ridge_sweep import cross_sectional_similarity, score_windows, select_portfolio
 
 BASELINE = "ordinal-ridge-reference"
 AUXILIARY_TARGETS = (

@@ -14,8 +14,8 @@ from types import SimpleNamespace
 import httpx
 from everestapi import EverestError
 
-import run_round
-from everesteer_batch import BatchError, BatchMintRefused, batch_item, submit_batch
+import scripts.run_round as run_round
+from scripts.everesteer_batch import BatchError, BatchMintRefused, batch_item, submit_batch
 from hackathon_setup import ROOT, make_client, require_event_account
 
 RECEIPT_FIELDS = ("upload_id", "status", "coalesced", "uploads_remaining")

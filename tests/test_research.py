@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from research_experiments import (
+from research.research_experiments import (
     BENCHMARK_MODEL,
     Candidate,
     candidate_predictor,

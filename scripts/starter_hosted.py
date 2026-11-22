@@ -28,7 +28,7 @@ Usage:
     pip install "everesteer-api>=0.4.1" lightgbm pandas pyarrow cloudpickle
     export EIQ_API_KEY=...                 # from onboarding
     export EIQ_BASE_URL=https://hackathon.everesteer.ai
-    python starter_hosted.py
+    python -m scripts.starter_hosted
 """
 
 from __future__ import annotations

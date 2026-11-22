@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 from everestapi import EverestAPI
 
-from run_round import reserve_attempt, run
+from scripts.run_round import reserve_attempt, run
 
 
 def event(window="round_1", remaining=4):

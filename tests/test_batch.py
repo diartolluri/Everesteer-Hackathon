@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import httpx
 
-from everesteer_batch import BatchError, BatchMintRefused, HostedBatch, batch_item
+from scripts.everesteer_batch import BatchError, BatchMintRefused, HostedBatch, batch_item
 
 
 class BatchTests(unittest.TestCase):

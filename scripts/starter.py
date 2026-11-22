@@ -24,7 +24,7 @@ Usage:
     pip install "everesteer-api>=0.4.1" lightgbm scikit-learn pandas pyarrow cloudpickle
     export EIQ_API_KEY=...                  # from your event onboarding
     export EIQ_BASE_URL=https://hackathon.everesteer.ai
-    python starter.py
+    python -m scripts.starter
 
 Connecting: production needs only your API key. A staging or preview host also
 sits behind Cloudflare Access and will bounce an API-key-only request at the edge

@@ -28,7 +28,7 @@ The official Everesteer examples below include three notebooks and the event con
 3. Run the loop once, end to end:
 
    ```bash
-   python starter.py
+   python -m scripts.starter
    ```
 
    It asks the platform where the event currently is, downloads whichever split
@@ -47,6 +47,17 @@ The official Everesteer examples below include three notebooks and the event con
 
 Everesteer is **agent-first**: the event is designed to be played by Claude Code, Codex, Cursor
 or anything else that can call tools. Everything below is available to a human too.
+
+### Repository layout
+
+| Area | Contents |
+|---|---|
+| Repository root | Core setup, model, scoring, and shared utilities |
+| [`scripts/`](scripts) | End-to-end entrypoints and round/submission CLIs |
+| [`research/`](research) | Offline candidate sweeps and portfolio experiments |
+| [`tests/`](tests) | Mocked unit tests that run without event credentials |
+| [`notebooks/`](notebooks) | Interactive setup, exploration, and submission workflows |
+| [`examples/`](examples) | Small sample inputs |
 
 ### The platform calls
 
@@ -154,7 +165,7 @@ Train on Everesteer's servers with the `train` call. You have $5 of credit, and 
 run costs a few cents. You can also train on your own hardware. Either way, use the server only
 to fit: score the model on your own holdout, and wrap it in your own `predict()` before
 uploading, rather than relying on the job's own scores or uploading the file it returns.
-[`starter.py`](starter.py) walks through the local path, [`starter_hosted.py`](starter_hosted.py)
+[`starter.py`](scripts/starter.py) walks through the local path, [`starter_hosted.py`](scripts/starter_hosted.py)
 the server one.
 
 You also have **$200 of LLM credit** on the platform, separate from the $5 above. The hosted
@@ -377,8 +388,8 @@ To let an agent drive the tools directly, see [The toolkit](#the-toolkit).
 
 | Path | What it is |
 |---|---|
-| [`starter.py`](starter.py) | The whole event loop in one script: orient, download, fit locally, submit to the right place. |
-| [`starter_hosted.py`](starter_hosted.py) | The same baseline fitted on Everesteer's servers, then scored on your own holdout, wrapped and submitted locally. |
+| [`starter.py`](scripts/starter.py) | The whole event loop in one script: orient, download, fit locally, submit to the right place. |
+| [`starter_hosted.py`](scripts/starter_hosted.py) | The same baseline fitted on Everesteer's servers, then scored on your own holdout, wrapped and submitted locally. |
 | [`notebooks/00_setup_and_connect.ipynb`](notebooks/00_setup_and_connect.ipynb) | Install, authenticate, read the event clock and your budgets. |
 | [`notebooks/01_explore_the_data.ipynb`](notebooks/01_explore_the_data.ipynb) | Expeds, feature bins and missingness, the target family. Read-only. |
 | [`notebooks/02_train_and_submit.ipynb`](notebooks/02_train_and_submit.ipynb) | A baseline, embargoed evaluation, the board, a round submission. |

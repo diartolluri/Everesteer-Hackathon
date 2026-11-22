@@ -28,9 +28,9 @@ from hackathon_models import (
     weighted_rank_prediction,
 )
 from hackathon_scoring import align_benchmark, core_reference, resolve_core_features
-from research_categorical_sweep import PROFILES as CATEGORICAL_PROFILES
-from research_categorical_sweep import fit_profile as fit_categorical
-from research_experiments import (
+from research.research_categorical_sweep import PROFILES as CATEGORICAL_PROFILES
+from research.research_categorical_sweep import fit_profile as fit_categorical
+from research.research_experiments import (
     Candidate,
     ResearchData,
     atomic_json,
@@ -39,10 +39,10 @@ from research_experiments import (
     rank_candidates,
     single,
 )
-from research_ridge_sweep import PROFILES as RIDGE_PROFILES
-from research_ridge_sweep import cross_sectional_similarity
-from research_ridge_sweep import fit_profile as fit_ridge
-from research_tree_sweep import Trial, build_fitter
+from research.research_ridge_sweep import PROFILES as RIDGE_PROFILES
+from research.research_ridge_sweep import cross_sectional_similarity
+from research.research_ridge_sweep import fit_profile as fit_ridge
+from research.research_tree_sweep import Trial, build_fitter
 
 PRACTICE_TINZAR = "ridge-residual-tinzar"
 PRACTICE_TASSERIRT = "ridge-short-tasserirt"

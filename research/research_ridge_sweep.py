@@ -30,7 +30,7 @@ from hackathon_models import (
     walk_forward_splits,
 )
 from hackathon_scoring import align_benchmark, core_reference, resolve_core_features
-from research_experiments import (
+from research.research_experiments import (
     ResearchData,
     atomic_json,
     evaluate_candidates,
