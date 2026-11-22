@@ -1,10 +1,10 @@
-# Everesteer: hackathon example scripts
+# Everesteer-Hackathon
 
-Everything you need to compete in an **Everesteer hackathon event**: a starter script that runs
-the whole loop once, three notebooks, and the agent contract in [`AGENTS.md`](AGENTS.md).
+Start with the [VS Code setup and runbook](HACKATHON_RUNBOOK.md). It covers offline verification, event discovery, model training, and practice and live dry runs. The baseline is ready to adapt when the challenge brief arrives.
 
+The official Everesteer examples below include three notebooks and the event contract in [`AGENTS.md`](AGENTS.md).
 
-## Quickstart
+## Official example quickstart
 
 1. Install the SDK, plus what the starter trains with:
 

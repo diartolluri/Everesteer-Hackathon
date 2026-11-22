@@ -1,0 +1,64 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Everesteer | Event status",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/hackathon_setup.py",
+      "cwd": "${workspaceFolder}",
+      "args": ["status"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Everesteer | Download training data",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/hackathon_setup.py",
+      "cwd": "${workspaceFolder}",
+      "args": ["download"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Everesteer | Train candidates",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/hackathon_models.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Everesteer | Offline smoke test",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/hackathon_models.py",
+      "cwd": "${workspaceFolder}",
+      "args": ["--smoke-test", "--artifacts", "artifacts/smoke-test"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Everesteer | Practice dry run",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/run_round.py",
+      "cwd": "${workspaceFolder}",
+      "args": ["practice"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Everesteer | Live dry run",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/run_round.py",
+      "cwd": "${workspaceFolder}",
+      "args": ["live"],
+      "console": "integratedTerminal"
+    }
+  ]
+}

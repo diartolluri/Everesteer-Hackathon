@@ -5,6 +5,7 @@ __pycache__/
 venv/
 .eiq-agent/
 .ipynb_checkpoints/
+.tools/
 
 # Datasets + trained models: don't commit these
 *.parquet
@@ -12,7 +13,9 @@ venv/
 
 # Secrets / local env: never commit your API key or CF service token
 .env
+.env.*
 *.env
+!.env.example
 
 # macOS
 .DS_Store
@@ -33,6 +36,7 @@ serverless_artifacts/
 # Research outputs: experiment write-ups, candidate models, prediction CSVs
 experiments/
 models/
+artifacts/
 
 # Predictions / models produced by the starters
 *_predictions.parquet
