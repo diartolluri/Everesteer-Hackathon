@@ -1,10 +1,13 @@
 everesteer-api==0.5.0
 lightgbm
+numpy
+scipy
 scikit-learn
 pandas
 pyarrow
 cloudpickle
 python-dotenv
 packaging
+httpx
 ipykernel
 matplotlib

@@ -28,11 +28,25 @@ def make_client() -> EverestAPI:
         raise RuntimeError(
             "Add EIQ_API_KEY from Everesteer onboarding to the workspace’s .env file."
         )
+    base_url = (os.getenv("EIQ_BASE_URL") or EVENT_URL).strip().rstrip("/")
+    if base_url != EVENT_URL:
+        raise RuntimeError("Set EIQ_BASE_URL to the official hackathon URL from onboarding.")
     return EverestAPI(
         api_key=key,
-        base_url=os.getenv("EIQ_BASE_URL") or EVENT_URL,
+        base_url=base_url,
         tournament="futures",
     )
+
+
+def require_event_account(started: dict) -> None:
+    """Confirm scope from authenticated orientation before using the event lanes."""
+    mode = started.get("mode")
+    if mode == "tournament" or not (
+        mode == "diagnostics_hackathon"
+        or started.get("scope") == "hackathon"
+        or started.get("cadence")
+    ):
+        raise RuntimeError("The credentials did not identify an Everesteer hackathon account.")
 
 
 def report_model_runtime(started: dict, base_url: str) -> None:
@@ -54,6 +68,7 @@ def report_model_runtime(started: dict, base_url: str) -> None:
         return
 
     checked = set()
+    mismatches = set()
     for line in response.text.splitlines():
         try:
             pin = Requirement(line.split(" #", 1)[0].strip())
@@ -66,14 +81,21 @@ def report_model_runtime(started: dict, base_url: str) -> None:
         try:
             installed = version(name)
         except PackageNotFoundError:
+            mismatches.add(name)
             print(f"Sandbox dependency {pin} is missing locally.")
         else:
             if installed not in pin.specifier:
+                mismatches.add(name)
                 print(
                     f"Sandbox version differs for {name}. Local {installed}, platform {pin.specifier}."
                 )
-    if not checked:
-        print("No applicable platform model library pins could be parsed.")
+    if checked:
+        print(
+            f"Matched {len(checked - mismatches)} of {len(checked)} published model library pins."
+        )
+    unverified = MODEL_LIBRARIES - checked
+    if unverified:
+        print("No applicable pin for", ", ".join(sorted(unverified)))
 
 
 def phase_time_remaining(ends_at: str | None) -> str:
@@ -94,8 +116,11 @@ def usdc(micro: int | None) -> str:
 
 def orient(client: EverestAPI) -> tuple[dict, dict]:
     started = client.get_started()
+    require_event_account(started)
     cadence = started.get("cadence") or {}
     print(f"Connected to Everesteer ({started.get('mode') or started.get('scope') or 'event'})")
+    if started.get("event_name"):
+        print(f"Event {started['event_name']}")
     print(f"Phase {cadence.get('phase')} | open window {cadence.get('open_window')}")
     print(f"Phase time remaining {phase_time_remaining(cadence.get('phase_ends_at'))}")
     print(f"Round intake fenced {cadence.get('intake_fenced')}")
@@ -107,6 +132,9 @@ def orient(client: EverestAPI) -> tuple[dict, dict]:
     if not isinstance(feature_sets, dict) or not feature_sets:
         raise RuntimeError("The verbose dataset schema did not include feature sets.")
     schema = {**verbose, **compact, "feature_sets": feature_sets}
+    for field in ("primary_target", "feature_encoding", "target_encoding"):
+        if not schema.get(field) and field in verbose:
+            schema[field] = verbose[field]
     if not schema.get("primary_target"):
         raise RuntimeError("The event dataset schema did not declare a primary target.")
     scoring = client.explain_scoring()
