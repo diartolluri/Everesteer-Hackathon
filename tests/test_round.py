@@ -1,4 +1,5 @@
 import contextlib
+import hashlib
 import io
 import json
 import sys
@@ -94,15 +95,40 @@ class RoundTests(unittest.TestCase):
         }
         (self.artifacts / "manifest.json").write_text(json.dumps(manifest))
 
-    def args(self, lane="live", *, submit=False, window=None):
+    def args(self, lane="live", *, submit=False, window=None, candidate=None):
         return Namespace(
             lane=lane,
             artifacts=self.artifacts,
             model=None,
+            candidate=candidate,
             submit=submit,
             window=window,
             ledger=self.root / "submissions.sqlite3",
         )
+
+    def research_manifest(self):
+        path = self.artifacts / "manifest.json"
+        manifest = json.loads(path.read_text())
+        artifact = manifest["models"].pop("lightgbm")
+        artifact["sha256"] = hashlib.sha256(
+            (self.artifacts / artifact["path"]).read_bytes()
+        ).hexdigest()
+        alternate = cloudpickle.dumps(
+            lambda scored: scored[["amber"]].sub(1).pow(2).rename(columns={"amber": "prediction"})
+        )
+        (self.artifacts / "alternate.pkl").write_bytes(alternate)
+        manifest["provenance"] = "walk_forward_research"
+        manifest["models"] = {
+            "selected-blend": {**artifact, "prevalidated": True},
+            "alternate": {
+                **artifact,
+                "path": "alternate.pkl",
+                "sha256": hashlib.sha256(alternate).hexdigest(),
+                "prevalidated": True,
+            },
+            "untested": artifact,
+        }
+        path.write_text(json.dumps(manifest))
 
     def reports(self, lane="live"):
         paths = sorted((self.artifacts / "runs").glob(f"{lane}-*/report.json"))
@@ -187,6 +213,66 @@ class RoundTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "synthetic"):
             run(self.args(), self.client)
         self.client.download_dataset.assert_not_called()
+        self.assert_no_writes()
+
+    def test_practice_only_experiment_cannot_enter_a_scored_round(self):
+        path = self.artifacts / "manifest.json"
+        manifest = json.loads(path.read_text())
+        manifest["practice_only"] = True
+        path.write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ValueError, "practice board only"):
+            run(self.args(submit=True, window="round_1"), self.client)
+        self.client.download_dataset.assert_not_called()
+        self.assert_no_writes()
+
+    def test_round_consumes_only_the_named_prevalidated_candidate(self):
+        self.research_manifest()
+        run(self.args(submit=True, window="round_1", candidate="selected-blend"), self.client)
+        self.client.submit_event_predictions.assert_called_once()
+        self.client.submit_validation_diagnostics.assert_not_called()
+        _, report = self.reports()[-1]
+        self.assertEqual(list(report["models"]), ["selected-blend"])
+
+    def test_round_submits_distinct_candidates_in_requested_order(self):
+        self.research_manifest()
+        self.client.create_model.side_effect = [{"id": "alternate-id"}, {"id": "blend-id"}]
+        self.client.submit_event_predictions.side_effect = [
+            {"upload_id": "alternate-upload", "status": "pending", "uploads_remaining": 3},
+            {"upload_id": "blend-upload", "status": "pending", "uploads_remaining": 2},
+        ]
+        args = self.args(
+            submit=True,
+            window="round_1",
+            candidate=["alternate", "selected-blend", "alternate"],
+        )
+        run(args, self.client)
+        self.client.download_dataset.assert_called_once()
+        self.client.submit_validation_diagnostics.assert_not_called()
+        calls = self.client.submit_event_predictions.call_args_list
+        self.assertEqual([call.args[0] for call in calls], ["alternate-id", "blend-id"])
+        self.assertEqual(
+            [Path(call.args[1]).stem for call in calls], ["alternate", "selected-blend"]
+        )
+        _, report = self.reports()[-1]
+        self.assertEqual(list(report["models"]), ["alternate", "selected-blend"])
+
+    def test_research_manifest_requires_an_explicit_prevalidated_candidate(self):
+        self.research_manifest()
+        for candidate, error in (
+            (None, "--candidate"),
+            ("missing", "Unknown research candidate"),
+            ("untested", "no verified artifact"),
+        ):
+            with self.subTest(candidate=candidate), self.assertRaisesRegex(ValueError, error):
+                run(self.args(submit=True, window="round_1", candidate=candidate), self.client)
+        self.client.download_dataset.assert_not_called()
+        self.assert_no_writes()
+
+    def test_research_candidate_rejects_a_changed_artifact(self):
+        self.research_manifest()
+        (self.artifacts / "lightgbm.pkl").write_bytes(b"changed")
+        with self.assertRaisesRegex(ValueError, "Checksum mismatch"):
+            run(self.args(submit=True, window="round_1", candidate="selected-blend"), self.client)
         self.assert_no_writes()
 
     def test_invalid_predictions_are_never_sent(self):

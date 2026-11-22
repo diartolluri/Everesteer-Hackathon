@@ -49,7 +49,7 @@ def require_event_account(started: dict) -> None:
         raise RuntimeError("The credentials did not identify an Everesteer hackathon account.")
 
 
-def report_model_runtime(started: dict, base_url: str) -> None:
+def report_model_runtime(started: dict, base_url: str, *, api_key: str | None = None) -> None:
     python = f"{sys.version_info.major}.{sys.version_info.minor}"
     supported = started.get("model_python_versions") or {}
     print(f"Local model Python {python}")
@@ -60,8 +60,29 @@ def report_model_runtime(started: dict, base_url: str) -> None:
         print(f"Platform library pins for Python {python} could not be confirmed.")
         return
 
+    url = urljoin(base_url + "/", pin_url)
+    lane_path = f"/api/v1/models/upload/lane-pins/{python}"
     try:
-        response = httpx.get(urljoin(base_url + "/", pin_url), timeout=10, follow_redirects=True)
+        if (
+            isinstance(api_key, str)
+            and api_key
+            and base_url == EVENT_URL
+            and url
+            in {
+                EVENT_URL + lane_path,
+                "https://app.everesteer.ai" + lane_path,
+            }
+        ):
+            # The published lane URL points to the tournament host. Event keys
+            # can read the same route on the authenticated hackathon host.
+            response = httpx.get(
+                EVENT_URL + lane_path,
+                headers={"X-API-Key": api_key},
+                timeout=10,
+                follow_redirects=False,
+            )
+        else:
+            response = httpx.get(url, timeout=10, follow_redirects=True)
         response.raise_for_status()
     except httpx.HTTPError as exc:
         print(f"Platform library pins could not be checked ({type(exc).__name__}).")
@@ -141,7 +162,7 @@ def orient(client: EverestAPI) -> tuple[dict, dict]:
     print(f"Primary target {schema['primary_target']}")
     print("Feature encoding", json.dumps(schema.get("feature_encoding"), sort_keys=True))
     print("Scoring weights", json.dumps(scoring.get("weights"), sort_keys=True))
-    report_model_runtime(started, client.base_url)
+    report_model_runtime(started, client.base_url, api_key=client.api_key)
 
     staking = started.get("event_staking") or {}
     print(f"Money event {staking.get('money_event')}")

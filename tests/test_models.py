@@ -1,6 +1,8 @@
 import contextlib
 import io
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from argparse import Namespace
@@ -48,6 +50,72 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(matrix.loc[1, "a"], 2)
         self.assertTrue(matrix["b"].isna().all())
         self.assertEqual(models.ridge_design(matrix).tolist(), [[0, 0, 1, 1], [2, 0, 0, 1]])
+
+    def test_stable_feature_selection_finds_residual_and_low_exposure_signal(self):
+        days = np.repeat(["e1", "e2", "e3"], 36)
+        main = np.tile(np.repeat(np.arange(6), 6), 3)
+        residual = np.tile(np.arange(6), 18)
+        frame = pd.DataFrame(
+            {
+                "exped": days,
+                "main": main,
+                "residual": residual,
+                "absent": -99,
+                "graded": 3 * main + residual,
+            }
+        )
+        columns = ["main", "residual", "absent"]
+        stability = models.feature_stability(
+            frame, columns, -99, "graded", "exped", frame["main"], frame["main"]
+        )
+        self.assertEqual(models.stable_feature_subset(stability, "fit", 1), ["main"])
+        self.assertEqual(models.stable_feature_subset(stability, "residual", 1), ["residual"])
+        self.assertEqual(models.stable_feature_subset(stability, "low_exposure", 1), ["residual"])
+        self.assertAlmostEqual(stability.loc["main", "benchmark_corr"], 1)
+        self.assertEqual(stability.loc["absent", "missing_rate"], 1)
+        self.assertTrue(pd.isna(stability.loc["absent", "fit_mean"]))
+
+    def test_research_predictors_preserve_named_features_missingness_and_range(self):
+        train, _, schema, _ = models.smoke_inputs()
+        target, exped, columns, missing = models.dataset_columns(train, schema)
+        ordered = sorted(train[exped].unique())
+        fit = train.loc[train[exped].isin(ordered[:12]) & train[target].notna()]
+        sample = train.loc[train[exped].isin(ordered[-2:]), [exped, *columns]]
+        predictors = models.model_predictions(
+            fit,
+            columns,
+            missing,
+            target,
+            exped=exped,
+            configs={
+                "ridge": {
+                    "family": "ridge",
+                    "alpha": 10,
+                    "missing_policy": "median-indicator",
+                    "feature_selection": "fit",
+                    "max_features": 2,
+                    "pca_components": 2,
+                },
+                "tree": {
+                    "family": "lightgbm",
+                    "n_estimators": 10,
+                    "missing_policy": "sentinel",
+                },
+            },
+        )
+        self.assertEqual(len(predictors["ridge"].feature_columns), 2)
+        weights = {"tree": 3, "ridge": 1}
+        blend = models.weighted_rank_prediction(predictors, exped, weights)
+        result = models.check_predictions(blend, sample)["prediction"]
+        self.assertTrue(result.gt(0).all())
+        self.assertTrue(result.le(1).all())
+        forecasts = pd.DataFrame(
+            {name: predict(sample)["prediction"] for name, predict in predictors.items()}
+        )
+        pd.testing.assert_series_equal(result, models.rank_blend(forecasts, sample[exped], weights))
+        for _, rows in sample.groupby(exped):
+            pd.testing.assert_series_equal(result.loc[rows.index], blend(rows)["prediction"])
+        models.check_predictions(blend, sample.drop(columns=columns[0]))
 
     def test_benchmark_requires_the_same_id_and_exped(self):
         index = pd.Index([f"opaque-{i}" for i in range(8)], name="id")
@@ -136,3 +204,35 @@ class ModelTests(unittest.TestCase):
                     pd.testing.assert_frame_equal(
                         expected.loc[current.index], models.check_predictions(predict, current)
                     )
+
+    def test_surrogate_hedge_round_trips_without_local_code_on_import_path(self):
+        train, benchmark, schema, _ = models.smoke_inputs()
+        target, exped, columns, missing = models.dataset_columns(train, schema)
+        calendar = sorted(train[exped].unique())
+        fit = train.loc[train[exped].isin(calendar[:10]) & train[target].notna()].copy()
+        fit["benchmark"] = benchmark["reference"].reindex(fit.index)
+        config = {"ridge": models.BASE_CONFIGS["ridge"]}
+        primary = models.model_predictions(fit, columns, missing, target, configs=config)["ridge"]
+        reference = models.model_predictions(fit, columns, missing, "benchmark", configs=config)[
+            "ridge"
+        ]
+        hedge = models.benchmark_surrogate_predictor(primary, reference, exped, 0.75)
+        sample = train.loc[train[exped].isin(calendar[-2:]), [exped, *columns]]
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory)
+            models.package({"hedge": hedge}, sample, exped, folder)
+            sample.to_parquet(folder / "sample.parquet")
+            script = (
+                "import sys, cloudpickle, pandas as pd\n"
+                "with open('hedge.pkl', 'rb') as artifact:\n"
+                "    predict = cloudpickle.load(artifact)\n"
+                "assert 'hackathon_scoring' not in sys.modules\n"
+                "assert 'hackathon_models' not in sys.modules\n"
+                "frame = pd.read_parquet('sample.parquet')\n"
+                "predict(frame).to_parquet('result.parquet')\n"
+            )
+            subprocess.run([sys.executable, "-I", "-c", script], cwd=folder, check=True)
+            result = pd.read_parquet(folder / "result.parquet")
+        expected = hedge(sample)
+        pd.testing.assert_frame_equal(result, expected)
+        self.assertTrue(result["prediction"].between(0, 1, inclusive="neither").all())

@@ -16,6 +16,7 @@ import cloudpickle
 import numpy as np
 import pandas as pd
 from everestapi import scoring
+from sklearn.decomposition import PCA
 from sklearn.linear_model import Ridge
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
@@ -54,7 +55,7 @@ def select_features(frame, columns, missing):
     return matrix if missing is None else matrix.mask(matrix == missing)
 
 
-def ridge_design(matrix):
+def ridge_design(matrix, fill=0.0):
     """Give missing values a separate coefficient and no numeric bin contribution."""
     values = matrix.to_numpy()
     missing = np.isnan(values)
@@ -62,7 +63,7 @@ def ridge_design(matrix):
     design = np.empty((len(values), 2 * n_columns), dtype=np.float32)
     numeric = design[:, :n_columns]
     numeric[:, :] = values
-    numeric[missing] = 0.0
+    np.copyto(numeric, np.asarray(fill, dtype=np.float32), where=missing)
     design[:, n_columns:] = missing
     return design
 
@@ -70,10 +71,10 @@ def ridge_design(matrix):
 def benchmark_residual_target(target, benchmark, expeds, strength):
     """Remove part of the benchmark direction using only labels inside the fit set."""
     target = target.astype(float)
-    reference = benchmark.reindex(target.index)
+    reference = benchmark.reindex(target.index).replace([np.inf, -np.inf], np.nan)
     matched = reference.notna()
     reference = reference.loc[matched]
-    groups = expeds.loc[matched]
+    groups = expeds.reindex(target.index).loc[matched]
     ranks = reference.groupby(groups).rank(pct=True)
     centered = ranks - ranks.groupby(groups).transform("mean")
     sums = (centered**2).groupby(groups).transform("sum")
@@ -83,6 +84,97 @@ def benchmark_residual_target(target, benchmark, expeds, strength):
     result = target.copy()
     result.loc[matched] -= strength * correction
     return result
+
+
+def feature_correlations(values, target):
+    """Correlate each column with the target over that column's finite pairs."""
+    present = np.isfinite(values) & np.isfinite(target[:, None])
+    x = np.where(present, values, 0.0)
+    y = np.where(present, target[:, None], 0.0)
+    count = present.sum(axis=0)
+    divisor = np.maximum(1, count)
+    x_sum = x.sum(axis=0)
+    y_sum = y.sum(axis=0)
+    cov = np.sum(x * y, axis=0) - x_sum * y_sum / divisor
+    x_var = np.maximum(0, np.sum(x * x, axis=0) - x_sum**2 / divisor)
+    y_var = np.maximum(0, np.sum(y * y, axis=0) - y_sum**2 / divisor)
+    scale = np.sqrt(x_var * y_var)
+    return np.divide(cov, scale, out=np.full(len(count), np.nan), where=(count >= 3) & (scale > 0))
+
+
+def feature_stability(fit, columns, missing, target, exped, benchmark=None, core=None):
+    """Measure feature relevance and reference exposure on labeled fit expeds only."""
+    matrix = select_features(fit, columns, missing).replace([np.inf, -np.inf], np.nan)
+    labels = fit[target]
+    expeds = fit[exped]
+    references = {"fit": labels}
+    if benchmark is not None:
+        references["benchmark"] = benchmark
+        references["residual"] = benchmark_residual_target(labels, benchmark, expeds, 1.0).where(
+            np.isfinite(benchmark.reindex(fit.index))
+        )
+    if core is not None:
+        references["core"] = core
+    ranks = {
+        name: values.reindex(fit.index)
+        .replace([np.inf, -np.inf], np.nan)
+        .groupby(expeds, sort=False)
+        .rank()
+        .to_numpy(dtype=float)
+        for name, values in references.items()
+    }
+    records = {name: [] for name in (*references, "missing")}
+    for positions in fit.groupby(exped, sort=False).indices.values():
+        rows = matrix.iloc[positions]
+        ranked = rows.rank().to_numpy()
+        for name, values in ranks.items():
+            records[name].append(feature_correlations(ranked, values[positions]))
+        records["missing"].append(
+            feature_correlations(rows.isna().to_numpy(dtype=float), ranks["fit"][positions])
+        )
+
+    result = pd.DataFrame(index=pd.Index(columns, name="feature"))
+    result["missing_rate"] = matrix.isna().mean(axis=0)
+    missing_corr = pd.DataFrame(records["missing"], columns=columns)
+    result["missing_fit"] = missing_corr.mean(axis=0)
+    for name, values in records.items():
+        if name == "missing":
+            continue
+        correlations = pd.DataFrame(values, columns=columns)
+        mean = correlations.mean(axis=0)
+        if name in {"benchmark", "core"}:
+            result[f"{name}_corr"] = mean
+            result[f"{name}_abs_corr"] = correlations.abs().mean(axis=0)
+        else:
+            std = correlations.std(axis=0, ddof=0)
+            consistent = correlations.mul(np.sign(mean), axis=1).gt(0)
+            sign_share = consistent.sum(axis=0) / correlations.count(axis=0).replace(0, np.nan)
+            result[f"{name}_mean"] = mean
+            result[f"{name}_std"] = std
+            result[f"{name}_sign_share"] = sign_share
+            result[f"{name}_stability"] = mean.abs() * sign_share / (1 + std)
+    return result
+
+
+def stable_feature_subset(stability, selection, max_features):
+    if selection == "fit":
+        score = stability["fit_stability"]
+    elif selection == "residual":
+        if "residual_stability" not in stability:
+            raise ValueError("Residual feature selection requires the aligned training benchmark.")
+        score = stability["residual_stability"]
+    elif selection == "low_exposure":
+        if "core_abs_corr" not in stability:
+            raise ValueError("Low-exposure feature selection requires a core reference series.")
+        score = stability["fit_stability"] * (1 - stability["core_abs_corr"].clip(0, 1))
+    else:
+        raise ValueError(f"Unknown feature selection {selection!r}.")
+    if not isinstance(max_features, int) or isinstance(max_features, bool) or max_features < 1:
+        raise ValueError("Feature selection requires a positive integer max_features.")
+    selected = score.dropna().sort_index().sort_values(ascending=False, kind="stable")
+    if selected.empty:
+        raise ValueError(f"No measurable features for {selection} selection in this fit window.")
+    return selected.head(max_features).index.tolist()
 
 
 def fit_tree(matrix, labels, params, expeds, embargo):
@@ -114,53 +206,145 @@ def fit_tree(matrix, labels, params, expeds, embargo):
     return tree.fit(matrix, labels)
 
 
-def fitted_predictor(estimator, columns, missing, family):
+def model_input(matrix, family, missing_policy, sentinel, fill):
+    if missing_policy == "sentinel":
+        return matrix if sentinel is None else matrix.fillna(sentinel)
+    if family == "ridge":
+        return ridge_design(matrix, fill)
+    if missing_policy == "native":
+        return matrix
+    flags = matrix.isna().astype("float32")
+    flags.columns = [f"__eiq_missing_{index}" for index in range(len(matrix.columns))]
+    if missing_policy == "median-indicator":
+        matrix = matrix.fillna(dict(zip(matrix.columns, fill, strict=True)))
+    return pd.concat([matrix, flags], axis=1)
+
+
+def fitted_predictor(estimator, columns, missing, family, missing_policy=None, fill=0.0):
+    missing_policy = missing_policy or ("indicator" if family == "ridge" else "native")
+
     def predict(live_features):
         matrix = select_features(live_features, columns, missing)
-        inputs = ridge_design(matrix) if family == "ridge" else matrix
+        inputs = model_input(matrix, family, missing_policy, missing, fill)
         return pd.DataFrame({"prediction": estimator.predict(inputs)}, index=live_features.index)
 
+    predict.feature_columns = tuple(columns)
     return predict
 
 
 def model_predictions(
-    fit, columns, missing, target, *, configs=None, exped=None, embargo=40, benchmark=None
+    fit,
+    columns,
+    missing,
+    target,
+    *,
+    configs=None,
+    exped=None,
+    embargo=40,
+    benchmark=None,
+    core=None,
 ):
     configs = BASE_CONFIGS if configs is None else configs
-    matrix = select_features(fit, columns, missing)
     expeds = None if exped is None else fit[exped]
-    has_ridge = any(config["family"] == "ridge" for config in configs.values())
-    linear_matrix = ridge_design(matrix) if has_ridge else None
     predictors = {}
+    stability = {}
+    last_design = None
+    matrix = inputs = fill = None
     for name, config in configs.items():
         params = config.copy()
         family = params.pop("family")
-        labels = fit[target]
+        if family not in {"lightgbm", "ridge"}:
+            raise ValueError(f"Unknown model family {family!r}.")
+        selection = params.pop("feature_selection", None)
+        max_features = params.pop("max_features", len(columns))
+        auxiliary = params.pop("auxiliary_target", None)
+        strength = params.pop("neutralization", None)
+        pca_components = params.pop("pca_components", None)
+        key = auxiliary or target
+        selected = list(columns)
+        if selection:
+            if exped is None:
+                raise ValueError("Stable feature selection requires an exped column.")
+            if key not in stability:
+                stability[key] = feature_stability(
+                    fit, columns, missing, key, exped, benchmark, core
+                )
+            selected = stable_feature_subset(stability[key], selection, max_features)
+        missing_policy = params.pop(
+            "missing_policy", "indicator" if family == "ridge" else "native"
+        )
+        valid_missing = {"sentinel", "native", "indicator", "median-indicator"}
+        if missing_policy not in valid_missing or (
+            family == "ridge" and missing_policy == "native"
+        ):
+            raise ValueError(f"Unsupported missing policy {missing_policy!r} for {family}.")
+        if missing_policy == "sentinel" and missing is None and family == "ridge":
+            raise ValueError("Sentinel Ridge requires the dataset to declare a missing sentinel.")
+        if pca_components is not None and family != "ridge":
+            raise ValueError("PCA is supported for Ridge models.")
+        labels = fit[key]
+        available = None
+        if auxiliary:
+            available = (labels.notna() & np.isfinite(labels)).to_numpy()
+            labels = labels.iloc[available]
+            if len(labels) < 3:
+                raise ValueError(
+                    f"Auxiliary target {auxiliary!r} has fewer than three usable fit rows."
+                )
+            if labels.corr(fit.loc[labels.index, target]) < 0:
+                labels = -labels
+        if strength is not None:
+            if benchmark is None or expeds is None:
+                raise ValueError(
+                    "Residual targets require an aligned training benchmark and expeds."
+                )
+            labels = benchmark_residual_target(labels, benchmark, expeds, strength)
+        design = (tuple(selected), family, missing_policy, auxiliary)
+        if design != last_design:
+            matrix = inputs = None
+            matrix = select_features(
+                fit if available is None else fit.iloc[available], selected, missing
+            )
+            fill = (
+                matrix.median().fillna(0.0).to_numpy(dtype=np.float32)
+                if missing_policy == "median-indicator"
+                else 0.0
+            )
+            inputs = model_input(matrix, family, missing_policy, missing, fill)
+            matrix = None
+            last_design = design
         if family == "lightgbm":
-            estimator = fit_tree(matrix, labels, params, expeds, embargo)
+            fit_times = None if expeds is None else expeds.loc[labels.index]
+            estimator = fit_tree(inputs, labels, params, fit_times, embargo)
         else:
-            inputs = linear_matrix
-            auxiliary = params.get("auxiliary_target")
-            if auxiliary:
-                available = fit[auxiliary].notna() & np.isfinite(fit[auxiliary])
-                labels = fit.loc[available, auxiliary]
-                if len(labels) < 3:
-                    raise ValueError(
-                        f"Auxiliary target {auxiliary!r} has fewer than three usable fit rows."
-                    )
-                correlation = labels.corr(fit.loc[available, target])
-                labels = -labels if correlation < 0 else labels
-                inputs = linear_matrix[available.to_numpy()]
-            strength = params.get("neutralization")
-            if strength is not None:
-                labels = benchmark_residual_target(labels, benchmark, expeds, strength)
+            steps = []
             if "relative_alpha" in params:
-                ridge = Ridge(alpha=params["relative_alpha"] * len(labels), solver="lsqr")
-                estimator = make_pipeline(StandardScaler(), ridge)
+                alpha = params["relative_alpha"] * len(labels)
+                steps.append(StandardScaler())
             else:
-                estimator = Ridge(alpha=params["alpha"], solver="lsqr")
+                alpha = params["alpha"]
+                if pca_components is not None:
+                    steps.append(StandardScaler())
+            if pca_components is not None:
+                if (
+                    not isinstance(pca_components, int)
+                    or isinstance(pca_components, bool)
+                    or pca_components < 1
+                ):
+                    raise ValueError("PCA requires a positive integer pca_components.")
+                steps.append(
+                    PCA(
+                        n_components=min(pca_components, *inputs.shape),
+                        svd_solver="randomized",
+                        random_state=821,
+                    )
+                )
+            ridge = Ridge(alpha=alpha, solver="lsqr")
+            estimator = make_pipeline(*steps, ridge) if steps else ridge
             estimator.fit(inputs, labels)
-        predictors[name] = fitted_predictor(estimator, columns, missing, family)
+        predictors[name] = fitted_predictor(
+            estimator, selected, missing, family, missing_policy, fill
+        )
     return predictors
 
 
@@ -169,18 +353,63 @@ def ranked_components(tree, linear, expeds):
     return pd.DataFrame({"tree": tree, "linear": linear}).groupby(expeds).rank(pct=True)
 
 
-def blend_prediction(predictors, exped_column, weight):
-    tree, linear = predictors["lightgbm"], predictors["ridge"]
+def rank_blend(forecasts, expeds, weights):
+    """Blend percentile ranks within each exped using nonnegative normalized weights."""
+    weights = pd.Series(weights, dtype=float)
+    if (
+        weights.empty
+        or not np.isfinite(weights).all()
+        or weights.lt(0).any()
+        or not 0 < weights.sum() < np.inf
+    ):
+        raise ValueError("A rank blend needs finite nonnegative weights with a positive total.")
+    expeds = expeds.reindex(forecasts.index)
+    if expeds.isna().any():
+        raise ValueError("A rank blend needs an exped label for each row.")
+    ranks = forecasts.loc[:, weights.index].groupby(expeds, sort=False).rank(pct=True)
+    return ranks.mul(weights / weights.sum()).sum(axis=1, skipna=False).rename("prediction")
+
+
+def weighted_rank_prediction(predictors, exped_column, weights):
+    weights = {name: value for name, value in weights.items() if value != 0}
+    members = {name: predictors[name] for name in weights}
 
     def predict(live_features):
-        expeds = live_features[exped_column]
-        if expeds.isna().any():
-            raise ValueError(f"The blend needs an exped label for each row in {exped_column!r}.")
-        ranks = ranked_components(
-            tree(live_features)["prediction"], linear(live_features)["prediction"], expeds
+        forecasts = pd.DataFrame(
+            {name: model(live_features)["prediction"] for name, model in members.items()},
+            index=live_features.index,
         )
-        return (weight * ranks["tree"] + (1 - weight) * ranks["linear"]).to_frame("prediction")
+        return rank_blend(forecasts, live_features[exped_column], weights).to_frame()
 
+    predict.feature_columns = (
+        tuple(sorted({column for member in members.values() for column in member.feature_columns}))
+        if members and all(hasattr(member, "feature_columns") for member in members.values())
+        else ()
+    )
+    return predict
+
+
+def blend_prediction(predictors, exped_column, weight):
+    return weighted_rank_prediction(
+        predictors, exped_column, {"lightgbm": weight, "ridge": 1 - weight}
+    )
+
+
+def benchmark_surrogate_predictor(predictor, reference_predictor, exped_column, alpha):
+    """Hedge against a feature-only benchmark estimate trained on historical data."""
+    from hackathon_scoring import benchmark_neutralize
+
+    def predict(live_features):
+        forecasts = predictor(live_features)["prediction"]
+        reference = reference_predictor(live_features)["prediction"]
+        return benchmark_neutralize(
+            forecasts, reference, live_features[exped_column], alpha
+        ).to_frame("prediction")
+
+    if hasattr(predictor, "feature_columns") and hasattr(reference_predictor, "feature_columns"):
+        predict.feature_columns = tuple(
+            sorted(set(predictor.feature_columns) | set(reference_predictor.feature_columns))
+        )
     return predict
 
 
@@ -405,6 +634,8 @@ def check_predictions(predictor, sample):
 def package(predictors, sample, exped, folder):
     if __name__ != "__main__":
         cloudpickle.register_pickle_by_value(sys.modules[__name__])
+    if "hackathon_scoring" in sys.modules:
+        cloudpickle.register_pickle_by_value(sys.modules["hackathon_scoring"])
     models = {}
     for name, predictor in predictors.items():
         path = folder / f"{name}.pkl"
@@ -434,6 +665,8 @@ def package(predictors, sample, exped, folder):
             "python_version": f"{sys.version_info.major}.{sys.version_info.minor}",
             "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         }
+        if getattr(predictor, "feature_columns", ()):
+            models[name]["feature_columns"] = list(predictor.feature_columns)
     return models
 
 

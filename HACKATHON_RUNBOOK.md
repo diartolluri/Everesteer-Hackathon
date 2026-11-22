@@ -11,7 +11,7 @@ python -m pip install -r requirements.txt
 cp -n .env.example .env
 ```
 
-Everesteer issues an event-specific API key as part of onboarding. In **Install & connect your agent**, open **Copy setup command** and put the event key in the local `.env` as `EIQ_API_KEY`. Use the official hackathon URL from that command. `.env`, downloads, model artifacts, prediction files and local receipts are Git-ignored.
+Everesteer issues an event-specific API key through onboarding or your event account page. In the setup guide, choose **Bring your own → Python SDK** for this project. Put the event key in the local `.env` as `EIQ_API_KEY` and use `EIQ_BASE_URL=https://hackathon.everesteer.ai`. The **Codex** option configures a separate MCP connection and requires the standalone `codex` command on your terminal's PATH. The Python scripts use the key from `.env`. That file, downloads, model artifacts, prediction files and local receipts are Git-ignored.
 
 The public weekday tournament tutorial documents a separate automatic submission workflow. For the event, trust the authenticated account, schema and scoring responses, then the event-specific docs and [repository contract](AGENTS.md). [Official hackathon quickstart](https://docs.everesteer.ai/getting-started/quickstart-hackathon.md) · [Event submissions](https://docs.everesteer.ai/submissions/event-submissions.md)
 
@@ -52,6 +52,35 @@ The manifest gives the primary model, fallback order, library versions, artifact
 The unauthenticated scoring response can show ordinary tournament weights even on the event host. Use the authenticated scoring settings from `hackathon_setup.py`. If a saved response gives incompatible weights, the training command reports the mismatch and selects on FIT with benchmark diagnostics.
 
 Optional research flags include `--feature-set` for a set advertised by the schema and `--max-fit-expeds` to cap fit time. An `--auxiliary-target` experiment requires a verified, embargo-safe label horizon. Use a separate `--artifacts` directory for experimental configurations. Drop the optional tuned search when a round is near and work from the proven baseline.
+
+## Compare research candidates
+
+Run the research comparison with the interpreter and library pins published for the event.
+
+```sh
+python research_experiments.py --refit-expeds 1400 --sensitivity-embargo-expeds 80
+python -c 'import json; print(json.load(open("artifacts/research/manifest.json"))["primary_model"])'
+python run_round.py practice --artifacts artifacts/research --candidate NAME
+```
+
+The comparison scouts configurable missing-value policies, stable and benchmark-residual feature subsets, residual targets, an optional auxiliary target, and PCA Ridge. It scales the leading configurations, sweeps rank blends and benchmark neutralization, and audits the chosen candidates on a separate 100-exped holdout. The default selection uses four chronological folds with a 40-exped embargo. The optional 80-exped check uses the same evaluation dates.
+
+The CSV and JSON leaderboards report SDK FIT, UNQ, INOV, event score, fold variation and benchmark correlation. The full event score requires the verified core feature list and the official training benchmark. The event schema currently publishes only the core overlap count, so selection uses the labeled FIT and UNQ proxy. The oracle sweep uses historical benchmark predictions for diagnosis. Deployable candidates use feature-only inference, including a fold-trained surrogate for neutralized candidates.
+
+The manifest records the winning name, distinct finalists and validated artifact checksums. The finalist shortlist skips repeated sets of constituents and highly correlated forecasts. Use `--candidate NAME` with the research artifact directory on either lane. Repeat the flag to enter several finalists from one split download. Live uploads require the open window and `--submit`.
+
+For a wider search, the Ridge, residual LightGBM and categorical sweeps each produce their own model manifest and fold reports. Run them before the practice blend sweep so it can use their verified artifacts.
+
+```sh
+python research_ridge_sweep.py
+python research_tree_sweep.py
+python research_categorical_sweep.py
+python research_blend_sweep.py
+```
+
+The targeted follow-up sweeps are `research_ranker_sweep.py` for within-exped ranking objectives and `research_residual_ridge_refinement.py` for residual Ridge variants. Both keep a later evaluation window outside model selection.
+
+The practice blend sweep publishes batches under `artifacts/wide-blends/`. A blend receives its own server evaluation when submitted with `run_round.py practice`. For locally validated blends, `research_crossfit_blends.py` fits weights on earlier historical windows and reports results on later embargoed windows and a final audit.
 
 ## Every scored round
 

@@ -24,6 +24,7 @@ from hackathon_setup import ROOT, make_client, require_event_account
 
 DEFAULT_LEDGER = ROOT / "artifacts" / "submissions.sqlite3"
 BASELINE_SLOTS = {"lightgbm": "hackathon-01", "ridge": "hackathon-02", "rank-blend": "hackathon-03"}
+RESEARCH_PROVENANCE = "walk_forward_research"
 
 
 def check_window(started, lane, expected_window=None, *, submitting=False, event_id=None):
@@ -125,7 +126,7 @@ def safe_error(exc):
     return type(exc).__name__
 
 
-def read_artifacts(directory, names):
+def read_artifacts(directory, names, *, candidate=None):
     manifest_path = directory / "manifest.json"
     if not manifest_path.is_file():
         raise FileNotFoundError(f"No model manifest at {manifest_path}. Run training first.")
@@ -137,6 +138,22 @@ def read_artifacts(directory, names):
             "These artifacts were trained on synthetic data. Train on the event data first."
         )
     models = manifest["models"]
+    if manifest.get("provenance") == RESEARCH_PROVENANCE:
+        if not candidate or names:
+            raise ValueError("Choose prevalidated research models with --candidate NAME.")
+        selected = {}
+        for name in dict.fromkeys([candidate] if isinstance(candidate, str) else candidate):
+            artifact = models.get(name)
+            if artifact is None:
+                raise ValueError(
+                    f"Unknown research candidate {name!r}. Available: {', '.join(models)}."
+                )
+            if artifact.get("prevalidated") is not True or not artifact.get("sha256"):
+                raise ValueError(f"Research candidate {name!r} has no verified artifact.")
+            selected[name] = artifact
+        return manifest, selected
+    if candidate is not None:
+        raise ValueError("--candidate requires a walk-forward research manifest.")
     priority = [manifest.get("primary_model"), *(manifest.get("fallback_models") or []), *models]
     selected = list(dict.fromkeys(names or [name for name in priority if name in models]))
     if not selected:
@@ -350,7 +367,14 @@ def run(args, client):
             "Live uploads require --window with the approved window from event status."
         )
     window = check_window(started, args.lane, approved_window, submitting=args.submit)
-    manifest, models = read_artifacts(args.artifacts, args.model)
+    manifest, models = read_artifacts(
+        args.artifacts, args.model, candidate=getattr(args, "candidate", None)
+    )
+    if args.lane == "live" and (
+        manifest.get("practice_only")
+        or any(model.get("practice_only") for model in models.values())
+    ):
+        raise ValueError("This experiment is marked for the practice board only.")
     check_libraries(manifest, models, started)
 
     schema = client.get_dataset_schema()
@@ -467,7 +491,7 @@ def run(args, client):
     write_report(report_path, report)
     if not args.submit:
         print(f"Dry run complete. Predictions saved locally to {output}.")
-        return
+        return report_path
     submit_prepared(args, client, report, report_path, models, current)
 
 
@@ -482,8 +506,14 @@ def main():
         default=ROOT / "artifacts",
         help="Directory containing manifest.json.",
     )
-    parser.add_argument(
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument(
         "--model", action="append", help="Model name from the manifest. Repeat to select several."
+    )
+    selection.add_argument(
+        "--candidate",
+        action="append",
+        help="Prevalidated model name from a research manifest. Repeat to select several.",
     )
     parser.add_argument(
         "--submit", action="store_true", help="Register model slots and upload predictions."

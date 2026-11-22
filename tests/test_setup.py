@@ -87,6 +87,27 @@ class SetupTests(unittest.TestCase):
         self.assertIn("Sandbox version differs for numpy", output.getvalue())
         self.assertNotIn("headers", get.call_args.kwargs)
 
+    def test_published_tournament_pin_route_uses_hackathon_host_for_the_event_key(self):
+        current = f"{sys.version_info.major}.{sys.version_info.minor}"
+        lane_path = f"/api/v1/models/upload/lane-pins/{current}"
+        started = {
+            "model_python_versions": {
+                "library_pins": {current: "https://app.everesteer.ai" + lane_path}
+            }
+        }
+        response = httpx.Response(200, request=httpx.Request("GET", EVENT_URL + lane_path))
+        with (
+            patch("hackathon_setup.httpx.get", return_value=response) as get,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            report_model_runtime(started, EVENT_URL, api_key="fixture-only")
+        get.assert_called_once_with(
+            EVENT_URL + lane_path,
+            headers={"X-API-Key": "fixture-only"},
+            timeout=10,
+            follow_redirects=False,
+        )
+
     def test_missing_training_benchmark_leaves_no_stale_reference(self):
         client = Mock()
         client.download_dataset.side_effect = lambda **args: Path(args["output_path"]).touch()
